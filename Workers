@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Waiter Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 15px;
+    }
+
+    .card {
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .row input[type="text"] {
+      border: none;
+      font-size: 16px;
+      width: 70%;
+      background: transparent;
+    }
+
+    .row input[type="checkbox"] {
+      transform: scale(1.3);
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .save { background: #28a745; color: white; }
+    .view { background: #007bff; color: white; }
+    .names { background: #ffc107; }
+
+    .past button {
+      margin: 5px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      background: #ddd;
+    }
+
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2 id="date"></h2>
+</div>
+
+<div class="card" id="list"></div>
+
+<div class="card buttons">
+  <button class="save" onclick="saveData()">Save</button>
+  <button class="view" onclick="viewPast()">Past</button>
+  <button class="names" onclick="editNames()">Names</button>
+</div>
+
+<div class="card past" id="past"></div>
+
+<script>
+const today = new Date().toLocaleDateString();
+document.getElementById("date").innerText = today;
+
+let waiterNames = JSON.parse(localStorage.getItem("waiterNames")) || [
+  "John","Mike","Anna","Chris","Maria",
+  "George","Nick","Sofia","Peter","Helen",
+  "Alex","Katerina","Paul","Andreas","Elena"
+];
+
+const listDiv = document.getElementById("list");
+
+function renderList() {
+  listDiv.innerHTML = "";
+  waiterNames.forEach((name, i) => {
+    const div = document.createElement("div");
+    div.className = "row";
+
+    div.innerHTML = `
+      <input type="text" value="${name}" id="name${i}">
+      <input type="checkbox" id="check${i}">
+    `;
+
+    listDiv.appendChild(div);
+  });
+}
+
+renderList();
+
+// Save data
+function saveData() {
+  let data = [];
+
+  for (let i = 0; i < waiterNames.length; i++) {
+    const name = document.getElementById(`name${i}`).value;
+    const worked = document.getElementById(`check${i}`).checked;
+
+    data.push({ name, worked });
+    waiterNames[i] = name;
+  }
+
+  localStorage.setItem(today, JSON.stringify(data));
+  localStorage.setItem("waiterNames", JSON.stringify(waiterNames));
+
+  alert("Saved!");
+
+  exportToWord(today, data);
+}
+
+// Export
+function exportToWord(date, data) {
+  let content = `<h2>${date}</h2>`;
+
+  data.forEach(w => {
+    content += `<p>${w.name} - ${w.worked ? "Worked" : "Absent"}</p>`;
+  });
+
+  const blob = new Blob(['\ufeff', content], {
+    type: 'application/msword'
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  a.href = url;
+  a.download = `waiters_${date}.doc`;
+  a.click();
+}
+
+// View past
+function viewPast() {
+  const pastDiv = document.getElementById("past");
+  pastDiv.innerHTML = "<h3>Past Records</h3>";
+
+  for (let key in localStorage) {
+    if (localStorage.hasOwnProperty(key) && key !== "waiterNames") {
+      const btn = document.createElement("button");
+      btn.innerText = key;
+
+      btn.onclick = () => {
+        const data = JSON.parse(localStorage.getItem(key));
+        showRecord(key, data);
+      };
+
+      pastDiv.appendChild(btn);
+    }
+  }
+}
+
+// Show record
+function showRecord(date, data) {
+  let text = `<h3>${date}</h3>`;
+
+  data.forEach(w => {
+    text += `<p>${w.name} - ${w.worked ? "Worked" : "Absent"}</p>`;
+  });
+
+  text += `<button onclick='exportAgain("${date}")'>Export</button>`;
+
+  document.getElementById("past").innerHTML = text;
+}
+
+// Export again
+function exportAgain(date) {
+  const data = JSON.parse(localStorage.getItem(date));
+  exportToWord(date, data);
+}
+
+// Edit names
+function editNames() {
+  const newNames = prompt("Enter names separated by comma:", waiterNames.join(","));
+
+  if (newNames) {
+    waiterNames = newNames.split(",").map(n => n.trim());
+    localStorage.setItem("waiterNames", JSON.stringify(waiterNames));
+    renderList();
+  }
+}
+</script>
+
+</body>
+</html>
