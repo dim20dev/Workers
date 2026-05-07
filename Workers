@@ -6,9 +6,8 @@
 
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       background: #f4f6f9;
-      margin: 0;
       padding: 15px;
     }
 
@@ -16,61 +15,46 @@
       background: white;
       padding: 15px;
       border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       margin-bottom: 15px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
     }
 
     h2 {
       text-align: center;
-      margin-bottom: 10px;
     }
 
     .row {
       display: flex;
-      align-items: center;
       justify-content: space-between;
       padding: 8px 0;
       border-bottom: 1px solid #eee;
     }
 
-    .row input[type="text"] {
+    input[type="text"] {
       border: none;
-      font-size: 16px;
       width: 70%;
+      font-size: 16px;
       background: transparent;
     }
 
-    .row input[type="checkbox"] {
+    input[type="checkbox"] {
       transform: scale(1.3);
     }
 
-    .buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
     button {
-      flex: 1;
       padding: 12px;
       border: none;
       border-radius: 10px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .save { background: #28a745; color: white; }
-    .view { background: #007bff; color: white; }
-    .names { background: #ffc107; }
-
-    .past button {
       margin: 5px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: none;
-      background: #ddd;
+      font-weight: bold;
+      width: 100%;
     }
+
+    .green { background: #28a745; color: white; }
+    .blue { background: #007bff; color: white; }
+    .orange { background: #ffc107; }
+    .gray { background: #6c757d; color: white; }
+    .purple { background: #6f42c1; color: white; }
 
   </style>
 </head>
@@ -83,18 +67,24 @@
 
 <div class="card" id="list"></div>
 
-<div class="card buttons">
-  <button class="save" onclick="saveData()">Save</button>
-  <button class="view" onclick="viewPast()">Past</button>
-  <button class="names" onclick="editNames()">Names</button>
+<div class="card">
+  <button class="green" onclick="saveData()">Save</button>
+  <button class="blue" onclick="viewPast()">Past Records</button>
+  <button class="orange" onclick="editNames()">Edit Names</button>
+  <button class="purple" onclick="monthlyReport()">Monthly Report</button>
+  <button class="gray" onclick="backupData()">Backup All Data</button>
+  <input type="file" onchange="restoreData(event)">
 </div>
 
-<div class="card past" id="past"></div>
+<div class="card" id="past"></div>
 
 <script>
-const today = new Date().toLocaleDateString();
+
+// USE SAFE DATE FORMAT
+const today = new Date().toISOString().slice(0,10);
 document.getElementById("date").innerText = today;
 
+// DEFAULT NAMES
 let waiterNames = JSON.parse(localStorage.getItem("waiterNames")) || [
   "John","Mike","Anna","Chris","Maria",
   "George","Nick","Sofia","Peter","Helen",
@@ -103,6 +93,7 @@ let waiterNames = JSON.parse(localStorage.getItem("waiterNames")) || [
 
 const listDiv = document.getElementById("list");
 
+// RENDER LIST
 function renderList() {
   listDiv.innerHTML = "";
   waiterNames.forEach((name, i) => {
@@ -120,7 +111,7 @@ function renderList() {
 
 renderList();
 
-// Save data
+// SAVE
 function saveData() {
   let data = [];
 
@@ -135,38 +126,31 @@ function saveData() {
   localStorage.setItem(today, JSON.stringify(data));
   localStorage.setItem("waiterNames", JSON.stringify(waiterNames));
 
-  alert("Saved!");
+  // SAVE FILE BACKUP
+  saveToFile({ date: today, data });
 
-  exportToWord(today, data);
+  alert("Saved!");
 }
 
-// Export
-function exportToWord(date, data) {
-  let content = `<h2>${date}</h2>`;
-
-  data.forEach(w => {
-    content += `<p>${w.name} - ${w.worked ? "Worked" : "Absent"}</p>`;
+// SAVE FILE (REAL STORAGE)
+function saveToFile(record) {
+  const blob = new Blob([JSON.stringify(record, null, 2)], {
+    type: "application/json"
   });
 
-  const blob = new Blob(['\ufeff', content], {
-    type: 'application/msword'
-  });
-
-  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-
-  a.href = url;
-  a.download = `waiters_${date}.doc`;
+  a.href = URL.createObjectURL(blob);
+  a.download = `waiters_${today}.json`;
   a.click();
 }
 
-// View past
+// VIEW PAST
 function viewPast() {
   const pastDiv = document.getElementById("past");
   pastDiv.innerHTML = "<h3>Past Records</h3>";
 
   for (let key in localStorage) {
-    if (localStorage.hasOwnProperty(key) && key !== "waiterNames") {
+    if (key !== "waiterNames") {
       const btn = document.createElement("button");
       btn.innerText = key;
 
@@ -180,7 +164,7 @@ function viewPast() {
   }
 }
 
-// Show record
+// SHOW RECORD
 function showRecord(date, data) {
   let text = `<h3>${date}</h3>`;
 
@@ -188,18 +172,10 @@ function showRecord(date, data) {
     text += `<p>${w.name} - ${w.worked ? "Worked" : "Absent"}</p>`;
   });
 
-  text += `<button onclick='exportAgain("${date}")'>Export</button>`;
-
   document.getElementById("past").innerHTML = text;
 }
 
-// Export again
-function exportAgain(date) {
-  const data = JSON.parse(localStorage.getItem(date));
-  exportToWord(date, data);
-}
-
-// Edit names
+// EDIT NAMES
 function editNames() {
   const newNames = prompt("Enter names separated by comma:", waiterNames.join(","));
 
@@ -209,6 +185,79 @@ function editNames() {
     renderList();
   }
 }
+
+// MONTHLY REPORT
+function monthlyReport() {
+  let counts = {};
+
+  for (let key in localStorage) {
+
+    if (key === "waiterNames") continue;
+
+    let date = new Date(key);
+    let now = new Date();
+
+    if (date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear()) {
+
+      const data = JSON.parse(localStorage.getItem(key));
+
+      data.forEach(w => {
+        if (w.worked) {
+          counts[w.name] = (counts[w.name] || 0) + 1;
+        }
+      });
+    }
+  }
+
+  let monthName = new Date().toLocaleString('default', { month: 'long' });
+  let content = `<h2>${monthName} Report</h2>`;
+
+  for (let name in counts) {
+    content += `<p>${name} - ${counts[name]} days</p>`;
+  }
+
+  const blob = new Blob(['\ufeff', content], {
+    type: 'application/msword'
+  });
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${monthName}_report.doc`;
+  a.click();
+}
+
+// BACKUP ALL DATA
+function backupData() {
+  const data = JSON.stringify(localStorage);
+
+  const blob = new Blob([data], { type: "application/json" });
+  const a = document.createElement("a");
+
+  a.href = URL.createObjectURL(blob);
+  a.download = "backup_all.json";
+  a.click();
+}
+
+// RESTORE DATA
+function restoreData(event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const data = JSON.parse(e.target.result);
+
+    for (let key in data) {
+      localStorage.setItem(key, data[key]);
+    }
+
+    alert("Restored!");
+    location.reload();
+  };
+
+  reader.readAsText(file);
+}
+
 </script>
 
 </body>
